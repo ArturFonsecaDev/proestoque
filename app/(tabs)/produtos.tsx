@@ -1,0 +1,315 @@
+import { Ionicons } from '@expo/vector-icons';
+import { useMemo, useState } from 'react';
+import {
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  type ListRenderItem,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { theme } from '@/constants/theme';
+import {
+  CATEGORIAS_MOCK,
+  PRODUTOS_MOCK,
+  obterStatusEstoque,
+  type Produto,
+  type StatusEstoque,
+} from '@/data/mockData';
+
+const TODAS_CATEGORIAS = 'Todos';
+
+const statusConfig: Record<StatusEstoque, { label: string; color: string; background: string }> = {
+  normal: {
+    label: 'Normal',
+    color: theme.colors.success,
+    background: theme.colors.successLight,
+  },
+  baixo: {
+    label: 'Baixo',
+    color: theme.colors.warning,
+    background: theme.colors.warningLight,
+  },
+  'sem-estoque': {
+    label: 'Sem estoque',
+    color: theme.colors.danger,
+    background: theme.colors.dangerLight,
+  },
+};
+
+const formatCurrency = new Intl.NumberFormat('pt-BR', {
+  style: 'currency',
+  currency: 'BRL',
+});
+
+export default function ProdutosScreen() {
+  const [busca, setBusca] = useState('');
+  const [categoriaSelecionada, setCategoriaSelecionada] = useState(TODAS_CATEGORIAS);
+
+  const categorias = useMemo(
+    () => [TODAS_CATEGORIAS, ...CATEGORIAS_MOCK.map((categoria) => categoria.nome)],
+    [],
+  );
+
+  const produtosFiltrados = useMemo(() => {
+    const termoBusca = busca.trim().toLowerCase();
+
+    return PRODUTOS_MOCK.filter((produto) => {
+      const correspondeBusca =
+        produto.nome.toLowerCase().includes(termoBusca) ||
+        produto.categoria.toLowerCase().includes(termoBusca);
+      const correspondeCategoria =
+        categoriaSelecionada === TODAS_CATEGORIAS ||
+        produto.categoria === categoriaSelecionada;
+
+      return correspondeBusca && correspondeCategoria;
+    });
+  }, [busca, categoriaSelecionada]);
+
+  const renderProduto: ListRenderItem<Produto> = ({ item }) => <ProdutoCard produto={item} />;
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Produtos</Text>
+          <Text style={styles.subtitle}>Busque e filtre os itens cadastrados</Text>
+        </View>
+
+        <View style={styles.searchBox}>
+          <Ionicons name="search-outline" size={20} color={theme.colors.muted} />
+          <TextInput
+            autoCapitalize="none"
+            autoCorrect={false}
+            placeholder="Buscar produto ou categoria"
+            placeholderTextColor={theme.colors.muted}
+            value={busca}
+            onChangeText={setBusca}
+            style={styles.searchInput}
+          />
+        </View>
+
+        <FlatList
+          horizontal
+          data={categorias}
+          keyExtractor={(item) => item}
+          renderItem={({ item }) => {
+            const ativo = item === categoriaSelecionada;
+
+            return (
+              <Pressable
+                style={[styles.chip, ativo && styles.chipActive]}
+                onPress={() => setCategoriaSelecionada(item)}>
+                <Text style={[styles.chipText, ativo && styles.chipTextActive]}>{item}</Text>
+              </Pressable>
+            );
+          }}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.chipsContent}
+        />
+
+        <FlatList
+          data={produtosFiltrados}
+          keyExtractor={(item) => item.id}
+          renderItem={renderProduto}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.productsContent}
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <Ionicons name="file-tray-outline" size={38} color={theme.colors.muted} />
+              <Text style={styles.emptyTitle}>Nenhum produto encontrado</Text>
+              <Text style={styles.emptyText}>Tente mudar a busca ou selecionar outra categoria.</Text>
+            </View>
+          }
+        />
+      </View>
+    </SafeAreaView>
+  );
+}
+
+function ProdutoCard({ produto }: { produto: Produto }) {
+  const status = obterStatusEstoque(produto);
+  const statusStyle = statusConfig[status];
+
+  return (
+    <View style={styles.productCard}>
+      <View style={styles.productImage}>
+        <Text style={styles.productInitials}>{produto.imagem}</Text>
+      </View>
+
+      <View style={styles.productInfo}>
+        <View style={styles.productTitleRow}>
+          <Text style={styles.productName}>{produto.nome}</Text>
+          <View style={[styles.badge, { backgroundColor: statusStyle.background }]}>
+            <Text style={[styles.badgeText, { color: statusStyle.color }]}>
+              {statusStyle.label}
+            </Text>
+          </View>
+        </View>
+        <Text style={styles.productCategory}>{produto.categoria}</Text>
+        <View style={styles.productFooter}>
+          <Text style={styles.productPrice}>{formatCurrency.format(produto.preco)}</Text>
+          <Text style={styles.productStock}>{produto.estoque} unidades</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  container: {
+    flex: 1,
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.lg,
+    gap: theme.spacing.md,
+  },
+  header: {
+    gap: theme.spacing.xs,
+  },
+  title: {
+    color: theme.colors.text,
+    fontSize: theme.fontSizes.xl,
+    fontWeight: '800',
+  },
+  subtitle: {
+    color: theme.colors.muted,
+    fontSize: theme.fontSizes.sm,
+  },
+  searchBox: {
+    minHeight: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    paddingHorizontal: theme.spacing.md,
+    gap: theme.spacing.sm,
+  },
+  searchInput: {
+    flex: 1,
+    color: theme.colors.text,
+    fontSize: theme.fontSizes.md,
+  },
+  chipsContent: {
+    gap: theme.spacing.sm,
+    paddingRight: theme.spacing.lg,
+  },
+  chip: {
+    height: 38,
+    justifyContent: 'center',
+    borderRadius: theme.radius.pill,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    paddingHorizontal: theme.spacing.md,
+  },
+  chipActive: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
+  },
+  chipText: {
+    color: theme.colors.muted,
+    fontSize: theme.fontSizes.sm,
+    fontWeight: '700',
+  },
+  chipTextActive: {
+    color: theme.colors.white,
+  },
+  productsContent: {
+    gap: theme.spacing.md,
+    paddingBottom: theme.spacing.xxl,
+  },
+  productCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    padding: theme.spacing.md,
+    gap: theme.spacing.md,
+  },
+  productImage: {
+    width: 54,
+    height: 54,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  productInitials: {
+    color: theme.colors.primary,
+    fontSize: theme.fontSizes.md,
+    fontWeight: '800',
+  },
+  productInfo: {
+    flex: 1,
+    gap: theme.spacing.xs,
+  },
+  productTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: theme.spacing.sm,
+  },
+  productName: {
+    flex: 1,
+    color: theme.colors.text,
+    fontSize: theme.fontSizes.md,
+    fontWeight: '800',
+  },
+  productCategory: {
+    color: theme.colors.muted,
+    fontSize: theme.fontSizes.sm,
+  },
+  productFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: theme.spacing.md,
+  },
+  productPrice: {
+    color: theme.colors.primary,
+    fontSize: theme.fontSizes.sm,
+    fontWeight: '800',
+  },
+  productStock: {
+    color: theme.colors.muted,
+    fontSize: theme.fontSizes.sm,
+    fontWeight: '700',
+  },
+  badge: {
+    borderRadius: theme.radius.pill,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+  },
+  badgeText: {
+    fontSize: theme.fontSizes.xs,
+    fontWeight: '800',
+  },
+  emptyState: {
+    marginTop: theme.spacing.xxl,
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    padding: theme.spacing.lg,
+  },
+  emptyTitle: {
+    color: theme.colors.text,
+    fontSize: theme.fontSizes.md,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  emptyText: {
+    color: theme.colors.muted,
+    fontSize: theme.fontSizes.sm,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+});
