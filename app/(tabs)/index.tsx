@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { theme } from '@/constants/theme';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   CATEGORIAS_MOCK,
   PRODUTOS_MOCK,
@@ -50,6 +51,11 @@ const formatDate = new Intl.DateTimeFormat('pt-BR', {
 
 export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
+  const { user } = useAuth();
+  const nomeUsuario = user?.nome ?? 'Usuario';
+  const primeiroNome = nomeUsuario.split(' ')[0];
+  const inicialUsuario = nomeUsuario.charAt(0).toUpperCase();
+  const saudacao = getSaudacao();
 
   const produtosRecentes = useMemo(
     () =>
@@ -131,11 +137,13 @@ export default function HomeScreen() {
           <View style={styles.headerContent}>
             <View style={styles.header}>
               <View>
-                <Text style={styles.greeting}>Ola, Artur</Text>
+                <Text style={styles.greeting}>
+                  {saudacao}, {primeiroNome}
+                </Text>
                 <Text style={styles.date}>{formatDate.format(new Date())}</Text>
               </View>
-              <View style={styles.headerIcon}>
-                <Ionicons name="storefront-outline" size={26} color={theme.colors.primary} />
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{inicialUsuario}</Text>
               </View>
             </View>
 
@@ -176,6 +184,20 @@ export default function HomeScreen() {
       />
     </SafeAreaView>
   );
+}
+
+function getSaudacao() {
+  const horaAtual = new Date().getHours();
+
+  if (horaAtual < 12) {
+    return 'Bom dia';
+  }
+
+  if (horaAtual < 18) {
+    return 'Boa tarde';
+  }
+
+  return 'Boa noite';
 }
 
 function ProdutoItem({ produto }: { produto: Produto }) {
@@ -232,13 +254,18 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSizes.sm,
     textTransform: 'capitalize',
   },
-  headerIcon: {
+  avatar: {
     width: 52,
     height: 52,
-    borderRadius: theme.radius.lg,
-    backgroundColor: theme.colors.primaryLight,
+    borderRadius: theme.radius.pill,
+    backgroundColor: theme.colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  avatarText: {
+    color: theme.colors.white,
+    fontSize: theme.fontSizes.lg,
+    fontWeight: '800',
   },
   summaryGrid: {
     flexDirection: 'row',

@@ -1,4 +1,4 @@
-import { Link, router } from 'expo-router';
+import { Link } from 'expo-router';
 import { useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -14,10 +14,12 @@ import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { LogoProEstoque } from '@/components/LogoProEstoque';
 import { theme } from '@/constants/theme';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
+  const { login, isLoading } = useAuth();
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -55,8 +57,9 @@ export default function LoginScreen() {
 
             <Button
               fullWidth
+              loading={isLoading}
               title="Entrar"
-              onPress={() => router.replace('/(tabs)')}
+              onPress={() => login(email, senha)}
             />
           </View>
 
