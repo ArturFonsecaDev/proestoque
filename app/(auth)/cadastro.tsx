@@ -1,4 +1,4 @@
-import { Link, router } from 'expo-router';
+import { Link } from 'expo-router';
 import { useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -15,25 +15,22 @@ import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { LogoProEstoque } from '@/components/LogoProEstoque';
 import { theme } from '@/constants/theme';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function CadastroScreen() {
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [confirmarSenha, setConfirmarSenha] = useState('');
-  const [loading, setLoading] = useState(false);
+  const { registrar, isLoading } = useAuth();
   const senhasDiferentes = confirmarSenha.length > 0 && senha !== confirmarSenha;
 
-  function handleCriarConta() {
+  async function handleCriarConta() {
     if (senhasDiferentes) {
       return;
     }
 
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      router.replace('/(tabs)');
-    }, 2000);
+    await registrar(nome, email, senha);
   }
 
   return (
@@ -86,7 +83,7 @@ export default function CadastroScreen() {
             <Button
               fullWidth
               disabled={senhasDiferentes}
-              loading={loading}
+              loading={isLoading}
               title="Criar Conta"
               onPress={handleCriarConta}
             />

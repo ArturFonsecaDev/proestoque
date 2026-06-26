@@ -4,14 +4,22 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useCallback,
   useState,
   type ReactNode,
 } from 'react';
+
+import { api, setApiToken, setUnauthorizedHandler } from '@/services/api';
 
 export type User = {
   id: string;
   nome: string;
   email: string;
+};
+
+type AuthResponse = {
+  usuario: User;
+  token: string;
 };
 
 export type AuthContextType = {
@@ -20,6 +28,7 @@ export type AuthContextType = {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, senha: string) => Promise<void>;
+  registrar: (nome: string, email: string, senha: string) => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -37,6 +46,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const clearSession = useCallback(async () => {
+    await Promise.all([
+      AsyncStorage.removeItem(USER_STORAGE_KEY),
+      AsyncStorage.removeItem(TOKEN_STORAGE_KEY),
+    ]);
+
+    setUser(null);
+    setToken(null);
+    setApiToken(null);
+  }, []);
+
   useEffect(() => {
     async function restoreSession() {
       try {
@@ -48,6 +68,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (storedUser && storedToken) {
           setUser(JSON.parse(storedUser) as User);
           setToken(storedToken);
+          setApiToken(storedToken);
         }
       } finally {
         setIsLoading(false);
@@ -57,27 +78,51 @@ export function AuthProvider({ children }: AuthProviderProps) {
     restoreSession();
   }, []);
 
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      clearSession();
+    });
+
+    return () => setUnauthorizedHandler(null);
+  }, [clearSession]);
+
+  async function persistSession(authResponse: AuthResponse) {
+    await Promise.all([
+      AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(authResponse.usuario)),
+      AsyncStorage.setItem(TOKEN_STORAGE_KEY, authResponse.token),
+    ]);
+
+    setUser(authResponse.usuario);
+    setToken(authResponse.token);
+    setApiToken(authResponse.token);
+  }
+
   async function login(email: string, senha: string) {
     setIsLoading(true);
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      const response = await api.post<AuthResponse>('/auth/login', {
+        email,
+        senha,
+      });
 
-      const normalizedEmail = email.trim() || 'artur@email.com';
-      const loggedUser: User = {
-        id: '1',
-        nome: 'Artur Fonsek',
-        email: normalizedEmail,
-      };
-      const authToken = `mock-token-${Date.now()}`;
+      await persistSession(response.data);
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
-      await Promise.all([
-        AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(loggedUser)),
-        AsyncStorage.setItem(TOKEN_STORAGE_KEY, authToken),
-      ]);
+  async function registrar(nome: string, email: string, senha: string) {
+    setIsLoading(true);
 
-      setUser(loggedUser);
-      setToken(authToken);
+    try {
+      const response = await api.post<AuthResponse>('/auth/registro', {
+        nome,
+        email,
+        senha,
+      });
+
+      await persistSession(response.data);
     } finally {
       setIsLoading(false);
     }
@@ -87,13 +132,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setIsLoading(true);
 
     try {
-      await Promise.all([
-        AsyncStorage.removeItem(USER_STORAGE_KEY),
-        AsyncStorage.removeItem(TOKEN_STORAGE_KEY),
-      ]);
-
-      setUser(null);
-      setToken(null);
+      await clearSession();
     } finally {
       setIsLoading(false);
     }
@@ -106,6 +145,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       isLoading,
       isAuthenticated: Boolean(user && token),
       login,
+      registrar,
       logout,
     }),
     [user, token, isLoading],
