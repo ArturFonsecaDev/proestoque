@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
+import { router, type Href } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   FlatList,
   Pressable,
   StyleSheet,
@@ -12,13 +14,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { theme } from '@/constants/theme';
-import {
-  CATEGORIAS_MOCK,
-  PRODUTOS_MOCK,
-  obterStatusEstoque,
-  type Produto,
-  type StatusEstoque,
-} from '@/data/mockData';
+import { useProducts } from '@/contexts/ProductsContext';
+import { obterStatusEstoque, type Produto, type StatusEstoque } from '@/data/mockData';
 
 const TODAS_CATEGORIAS = 'Todos';
 
@@ -48,16 +45,18 @@ const formatCurrency = new Intl.NumberFormat('pt-BR', {
 export default function ProdutosScreen() {
   const [busca, setBusca] = useState('');
   const [categoriaSelecionada, setCategoriaSelecionada] = useState(TODAS_CATEGORIAS);
+  const { produtos, isLoading } = useProducts();
 
-  const categorias = useMemo(
-    () => [TODAS_CATEGORIAS, ...CATEGORIAS_MOCK.map((categoria) => categoria.nome)],
-    [],
-  );
+  const categorias = useMemo(() => {
+    const uniqueCategories = Array.from(new Set(produtos.map((produto) => produto.categoria)));
+
+    return [TODAS_CATEGORIAS, ...uniqueCategories];
+  }, [produtos]);
 
   const produtosFiltrados = useMemo(() => {
     const termoBusca = busca.trim().toLowerCase();
 
-    return PRODUTOS_MOCK.filter((produto) => {
+    return produtos.filter((produto) => {
       const correspondeBusca =
         produto.nome.toLowerCase().includes(termoBusca) ||
         produto.categoria.toLowerCase().includes(termoBusca);
@@ -67,16 +66,26 @@ export default function ProdutosScreen() {
 
       return correspondeBusca && correspondeCategoria;
     });
-  }, [busca, categoriaSelecionada]);
+  }, [busca, categoriaSelecionada, produtos]);
 
   const renderProduto: ListRenderItem<Produto> = ({ item }) => <ProdutoCard produto={item} />;
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator color={theme.colors.primary} size="large" />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>Produtos</Text>
-          <Text style={styles.subtitle}>Busque e filtre os itens cadastrados</Text>
+          <Text style={styles.subtitle}>Busque, filtre e gerencie os itens cadastrados</Text>
         </View>
 
         <View style={styles.searchBox}>
@@ -121,10 +130,17 @@ export default function ProdutosScreen() {
             <View style={styles.emptyState}>
               <Ionicons name="file-tray-outline" size={38} color={theme.colors.muted} />
               <Text style={styles.emptyTitle}>Nenhum produto encontrado</Text>
-              <Text style={styles.emptyText}>Tente mudar a busca ou selecionar outra categoria.</Text>
+              <Text style={styles.emptyText}>Tente mudar a busca ou cadastre um novo produto.</Text>
             </View>
           }
         />
+
+        <Pressable
+          accessibilityRole="button"
+          style={styles.fab}
+          onPress={() => router.push('/produtos/novo' as Href)}>
+          <Ionicons name="add" size={28} color={theme.colors.white} />
+        </Pressable>
       </View>
     </SafeAreaView>
   );
@@ -135,7 +151,14 @@ function ProdutoCard({ produto }: { produto: Produto }) {
   const statusStyle = statusConfig[status];
 
   return (
-    <View style={styles.productCard}>
+    <Pressable
+      style={styles.productCard}
+      onPress={() =>
+        router.push({
+          pathname: '/produtos/[id]',
+          params: { id: produto.id },
+        } as unknown as Href)
+      }>
       <View style={styles.productImage}>
         <Text style={styles.productInitials}>{produto.imagem}</Text>
       </View>
@@ -155,7 +178,7 @@ function ProdutoCard({ produto }: { produto: Produto }) {
           <Text style={styles.productStock}>{produto.estoque} unidades</Text>
         </View>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -163,6 +186,11 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: theme.colors.background,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   container: {
     flex: 1,
@@ -225,7 +253,7 @@ const styles = StyleSheet.create({
   },
   productsContent: {
     gap: theme.spacing.md,
-    paddingBottom: theme.spacing.xxl,
+    paddingBottom: 110,
   },
   productCard: {
     flexDirection: 'row',
@@ -311,5 +339,21 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSizes.sm,
     textAlign: 'center',
     lineHeight: 20,
+  },
+  fab: {
+    position: 'absolute',
+    right: theme.spacing.lg,
+    bottom: theme.spacing.lg,
+    width: 62,
+    height: 62,
+    borderRadius: theme.radius.pill,
+    backgroundColor: theme.colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: theme.colors.text,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.22,
+    shadowRadius: 12,
+    elevation: 6,
   },
 });

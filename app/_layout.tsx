@@ -4,11 +4,14 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { theme } from '@/constants/theme';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import { ProductsProvider } from '@/contexts/ProductsContext';
 
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <NavigationGuard />
+      <ProductsProvider>
+        <NavigationGuard />
+      </ProductsProvider>
     </AuthProvider>
   );
 }

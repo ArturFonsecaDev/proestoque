@@ -12,9 +12,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { theme } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
+import { useProducts } from '@/contexts/ProductsContext';
 import {
-  CATEGORIAS_MOCK,
-  PRODUTOS_MOCK,
   obterStatusEstoque,
   type Produto,
   type StatusEstoque,
@@ -52,6 +51,7 @@ const formatDate = new Intl.DateTimeFormat('pt-BR', {
 export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const { user } = useAuth();
+  const { produtos } = useProducts();
   const nomeUsuario = user?.nome ?? 'Usuario';
   const primeiroNome = nomeUsuario.split(' ')[0];
   const inicialUsuario = nomeUsuario.charAt(0).toUpperCase();
@@ -59,29 +59,34 @@ export default function HomeScreen() {
 
   const produtosRecentes = useMemo(
     () =>
-      [...PRODUTOS_MOCK].sort(
+      [...produtos].sort(
         (produtoA, produtoB) =>
           new Date(produtoB.criadoEm).getTime() - new Date(produtoA.criadoEm).getTime(),
       ),
-    [],
+    [produtos],
   );
 
   const produtosEmAlerta = useMemo(
-    () => PRODUTOS_MOCK.filter((produto) => obterStatusEstoque(produto) !== 'normal'),
-    [],
+    () => produtos.filter((produto) => obterStatusEstoque(produto) !== 'normal'),
+    [produtos],
   );
 
   const valorTotal = useMemo(
     () =>
-      PRODUTOS_MOCK.reduce((total, produto) => total + produto.preco * produto.estoque, 0),
-    [],
+      produtos.reduce((total, produto) => total + produto.preco * produto.estoque, 0),
+    [produtos],
+  );
+
+  const totalCategorias = useMemo(
+    () => new Set(produtos.map((produto) => produto.categoria)).size,
+    [produtos],
   );
 
   const resumoCards = [
     {
       id: 'total',
       label: 'Total',
-      value: PRODUTOS_MOCK.length.toString(),
+      value: produtos.length.toString(),
       icon: 'cube-outline',
       color: theme.colors.primary,
     },
@@ -95,7 +100,7 @@ export default function HomeScreen() {
     {
       id: 'categorias',
       label: 'Categorias',
-      value: CATEGORIAS_MOCK.length.toString(),
+      value: totalCategorias.toString(),
       icon: 'albums-outline',
       color: theme.colors.secondary,
     },
